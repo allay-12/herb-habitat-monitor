@@ -8,4 +8,4 @@
 
 - [HerbTouch](firmware/HerbTouch/README.md) 为 STM32F407VET6 主固件。包含 CubeMX 和 Keil 工程、传感器采集、触摸屏、SD 卡及 Air780E 上传逻辑。
 - [Air780_F103_Diag](firmware/Air780_F103_Diag/README.md) 为 STM32F103C8T6 串口诊断固件。
-- 服务器地址、证书及设备凭据的脱敏位置和本地配置方法见 [已脱敏的配置](firmware/HerbTouch/README.md#已脱敏的配置)。
+- 服务器地址、证书及设备凭据的代码位置和本地配置方法见 [已脱敏的配置](firmware/HerbTouch/README.md#已脱敏的配置)。
