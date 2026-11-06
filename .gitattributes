@@ -1,0 +1,6 @@
+/firmware/Air780_F103_Diag/Drivers/** -text
+/firmware/Air780_F103_Diag/licenses/** -text
+/firmware/Air780_F103_Diag/MDK-ARM/startup_stm32f103xb.s -text
+/firmware/HerbTouch/Drivers/** -text
+/firmware/HerbTouch/ThirdParty/** -text
+/firmware/Air780_F103_Diag/Core/Inc/stm32f1xx_hal_conf.h -text

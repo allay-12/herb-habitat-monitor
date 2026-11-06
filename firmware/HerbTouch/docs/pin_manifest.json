@@ -1,0 +1,345 @@
+[
+  {
+    "pin": "PD14",
+    "signal": "FSMC_D0",
+    "label": "LCD_D0",
+    "GPIO_Label": "LCD_D0",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD15",
+    "signal": "FSMC_D1",
+    "label": "LCD_D1",
+    "GPIO_Label": "LCD_D1",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD0",
+    "signal": "FSMC_D2",
+    "label": "LCD_D2",
+    "GPIO_Label": "LCD_D2",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD1",
+    "signal": "FSMC_D3",
+    "label": "LCD_D3",
+    "GPIO_Label": "LCD_D3",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE7",
+    "signal": "FSMC_D4",
+    "label": "LCD_D4",
+    "GPIO_Label": "LCD_D4",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE8",
+    "signal": "FSMC_D5",
+    "label": "LCD_D5",
+    "GPIO_Label": "LCD_D5",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE9",
+    "signal": "FSMC_D6",
+    "label": "LCD_D6",
+    "GPIO_Label": "LCD_D6",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE10",
+    "signal": "FSMC_D7",
+    "label": "LCD_D7",
+    "GPIO_Label": "LCD_D7",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE11",
+    "signal": "FSMC_D8",
+    "label": "LCD_D8",
+    "GPIO_Label": "LCD_D8",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE12",
+    "signal": "FSMC_D9",
+    "label": "LCD_D9",
+    "GPIO_Label": "LCD_D9",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE13",
+    "signal": "FSMC_D10",
+    "label": "LCD_D10",
+    "GPIO_Label": "LCD_D10",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE14",
+    "signal": "FSMC_D11",
+    "label": "LCD_D11",
+    "GPIO_Label": "LCD_D11",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PE15",
+    "signal": "FSMC_D12",
+    "label": "LCD_D12",
+    "GPIO_Label": "LCD_D12",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD8",
+    "signal": "FSMC_D13",
+    "label": "LCD_D13",
+    "GPIO_Label": "LCD_D13",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD9",
+    "signal": "FSMC_D14",
+    "label": "LCD_D14",
+    "GPIO_Label": "LCD_D14",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD10",
+    "signal": "FSMC_D15",
+    "label": "LCD_D15",
+    "GPIO_Label": "LCD_D15",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD7",
+    "signal": "FSMC_NE1",
+    "label": "LCD_CS",
+    "GPIO_Label": "LCD_CS",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD11",
+    "signal": "FSMC_A16",
+    "label": "LCD_RS",
+    "GPIO_Label": "LCD_RS",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD4",
+    "signal": "FSMC_NOE",
+    "label": "LCD_RD",
+    "GPIO_Label": "LCD_RD",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD5",
+    "signal": "FSMC_NWE",
+    "label": "LCD_WR",
+    "GPIO_Label": "LCD_WR",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD6",
+    "signal": "GPIO_Output",
+    "label": "LCD_RESET",
+    "GPIO_Label": "LCD_RESET",
+    "GPIO_Speed": "GPIO_SPEED_FREQ_LOW",
+    "GPIO_PuPd": "GPIO_NOPULL",
+    "GPIO_ModeDefaultOutputPP": "GPIO_MODE_OUTPUT_PP",
+    "PinState": "GPIO_PIN_RESET"
+  },
+  {
+    "pin": "PB15",
+    "signal": "S_TIM12_CH2",
+    "label": "LCD_BL",
+    "GPIO_Label": "LCD_BL",
+    "GPIO_Speed": "GPIO_SPEED_FREQ_LOW",
+    "GPIO_PuPd": "GPIO_PULLDOWN"
+  },
+  {
+    "pin": "PB12",
+    "signal": "GPIO_Output",
+    "label": "TP_CS",
+    "GPIO_Label": "TP_CS",
+    "GPIO_Speed": "GPIO_SPEED_FREQ_LOW",
+    "GPIO_PuPd": "GPIO_NOPULL",
+    "GPIO_ModeDefaultOutputPP": "GPIO_MODE_OUTPUT_PP",
+    "PinState": "GPIO_PIN_SET"
+  },
+  {
+    "pin": "PB13",
+    "signal": "GPIO_Output",
+    "label": "TP_CLK",
+    "GPIO_Label": "TP_CLK",
+    "GPIO_Speed": "GPIO_SPEED_FREQ_LOW",
+    "GPIO_PuPd": "GPIO_NOPULL",
+    "GPIO_ModeDefaultOutputPP": "GPIO_MODE_OUTPUT_PP",
+    "PinState": "GPIO_PIN_RESET"
+  },
+  {
+    "pin": "PB14",
+    "signal": "GPIO_Output",
+    "label": "TP_MOSI",
+    "GPIO_Label": "TP_MOSI",
+    "GPIO_Speed": "GPIO_SPEED_FREQ_LOW",
+    "GPIO_PuPd": "GPIO_NOPULL",
+    "GPIO_ModeDefaultOutputPP": "GPIO_MODE_OUTPUT_PP",
+    "PinState": "GPIO_PIN_RESET"
+  },
+  {
+    "pin": "PC4",
+    "signal": "GPIO_Input",
+    "label": "TP_MISO",
+    "GPIO_Label": "TP_MISO",
+    "GPIO_PuPd": "GPIO_PULLUP"
+  },
+  {
+    "pin": "PC5",
+    "signal": "GPXTI5",
+    "label": "TP_PEN",
+    "GPIO_Label": "TP_PEN",
+    "GPIO_PuPd": "GPIO_PULLUP",
+    "GPIO_ModeDefaultEXTI": "GPIO_MODE_IT_FALLING"
+  },
+  {
+    "pin": "PA9",
+    "signal": "USART1_TX",
+    "label": "DEBUG_TX",
+    "GPIO_Label": "DEBUG_TX"
+  },
+  {
+    "pin": "PA10",
+    "signal": "USART1_RX",
+    "label": "DEBUG_RX",
+    "GPIO_Label": "DEBUG_RX"
+  },
+  {
+    "pin": "PA13",
+    "signal": "SYS_JTMS-SWDIO",
+    "label": "SWDIO",
+    "GPIO_Label": "SWDIO"
+  },
+  {
+    "pin": "PA14",
+    "signal": "SYS_JTCK-SWCLK",
+    "label": "SWCLK",
+    "GPIO_Label": "SWCLK"
+  },
+  {
+    "pin": "PB0",
+    "signal": "GPIO_Output",
+    "label": "SENSOR_PWR_EN",
+    "GPIO_Label": "SENSOR_PWR_EN",
+    "GPIO_Speed": "GPIO_SPEED_FREQ_LOW",
+    "GPIO_PuPd": "GPIO_NOPULL",
+    "GPIO_ModeDefaultOutputPP": "GPIO_MODE_OUTPUT_PP",
+    "PinState": "GPIO_PIN_RESET"
+  },
+  {
+    "pin": "PB1",
+    "signal": "GPIO_Output",
+    "label": "MODEM_PWR_EN",
+    "GPIO_Label": "MODEM_PWR_EN",
+    "GPIO_Speed": "GPIO_SPEED_FREQ_LOW",
+    "GPIO_PuPd": "GPIO_NOPULL",
+    "GPIO_ModeDefaultOutputPP": "GPIO_MODE_OUTPUT_PP",
+    "PinState": "GPIO_PIN_RESET"
+  },
+  {
+    "pin": "PA1",
+    "signal": "GPIO_Analog",
+    "label": "RSRV_MODEM_PWRKEY",
+    "GPIO_Label": "RSRV_MODEM_PWRKEY"
+  },
+  {
+    "pin": "PA2",
+    "signal": "USART2_TX",
+    "label": "MODEM_TX",
+    "GPIO_Label": "MODEM_TX"
+  },
+  {
+    "pin": "PA3",
+    "signal": "USART2_RX",
+    "label": "MODEM_RX",
+    "GPIO_Label": "MODEM_RX"
+  },
+  {
+    "pin": "PB10",
+    "signal": "USART3_TX",
+    "label": "RS485_TX",
+    "GPIO_Label": "RS485_TX"
+  },
+  {
+    "pin": "PB11",
+    "signal": "USART3_RX",
+    "label": "RS485_RX",
+    "GPIO_Label": "RS485_RX"
+  },
+  {
+    "pin": "PB8",
+    "signal": "GPIO_Analog",
+    "label": "RSRV_I2C1_SCL_INA219",
+    "GPIO_Label": "RSRV_I2C1_SCL_INA219"
+  },
+  {
+    "pin": "PB9",
+    "signal": "GPIO_Analog",
+    "label": "RSRV_I2C1_SDA_INA219",
+    "GPIO_Label": "RSRV_I2C1_SDA_INA219"
+  },
+  {
+    "pin": "PC8",
+    "signal": "SDIO_D0",
+    "label": "SDIO_D0",
+    "GPIO_Label": "SDIO_D0",
+    "GPIO_PuPd": "GPIO_PULLUP",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PC9",
+    "signal": "GPIO_Analog",
+    "label": "RSRV_SDIO_D1",
+    "GPIO_Label": "RSRV_SDIO_D1"
+  },
+  {
+    "pin": "PC10",
+    "signal": "GPIO_Analog",
+    "label": "RSRV_SDIO_D2",
+    "GPIO_Label": "RSRV_SDIO_D2"
+  },
+  {
+    "pin": "PC11",
+    "signal": "GPIO_Analog",
+    "label": "RSRV_SDIO_D3",
+    "GPIO_Label": "RSRV_SDIO_D3"
+  },
+  {
+    "pin": "PC12",
+    "signal": "SDIO_CK",
+    "label": "SDIO_CK",
+    "GPIO_Label": "SDIO_CK",
+    "GPIO_PuPd": "GPIO_NOPULL",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PD2",
+    "signal": "SDIO_CMD",
+    "label": "SDIO_CMD",
+    "GPIO_Label": "SDIO_CMD",
+    "GPIO_PuPd": "GPIO_PULLUP",
+    "GPIO_Speed_High_Default": "GPIO_SPEED_FREQ_HIGH"
+  },
+  {
+    "pin": "PA11",
+    "signal": "GPIO_Analog",
+    "label": "RSRV_USB_DM",
+    "GPIO_Label": "RSRV_USB_DM"
+  },
+  {
+    "pin": "PA12",
+    "signal": "GPIO_Analog",
+    "label": "RSRV_USB_DP",
+    "GPIO_Label": "RSRV_USB_DP"
+  }
+]

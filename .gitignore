@@ -1,0 +1,16 @@
+/firmware/HerbTouch/PrivateConfig/
+/firmware/HerbTouch/MDK-ARM/HerbTouch/
+/firmware/Air780_F103_Diag/MDK-ARM/Build/
+**/evidence/
+/firmware/HerbTouch/design/sd-test-card/
+**/MXTmpFiles/
+__pycache__/
+*.uvguix.*
+*.uvoptx
+*.lst
+*.log
+*.axf
+*.hex
+*.bin
+*.map
+/firmware/Air780_F103_Diag/MDK-ARM/RTE/
