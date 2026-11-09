@@ -1,0 +1,141 @@
+Herb Habitat Monitor 引脚连接表
+更新日期：2026-11-09
+主控：STM32F407VET6，LQFP100，Type-C 双排针最小系统板
+依据：当前 HerbTouch.ioc、Core/Inc/main.h、实际驱动和已核对的随板资料。
+按引脚丝印接线；本表不根据照片朝向推断排针编号。
+
+一、当前启用与预留状态
+1. 已启用：ST7796S 显示、XPT2046 触摸、板载SDIO 1位卡槽、
+   USART1调试、USART2 Air780E、USART3 RS485、PB0传感器供电控制。
+2. PB0：上电开始5分钟采集窗口，每15分钟循环；前30秒等待启动，
+   窗口内轮询，结束保存/上传一份平均值，随后休息10分钟。
+3. PB1：已分配为MODEM_PWR_EN输出，但当前程序保持低电平。
+   4G使用独立、常供的稳压5V，不依赖PB1开启第二块MOS。
+4. PA1：预留PWRKEY，当前模拟高阻，不接Air780E的PWRKEY。
+5. PB8/PB9：预留INA219，当前模拟高阻；尚未启用电源/电池监测。
+6. PC9/PC10/PC11：预留SDIO扩展；PA11/PA12：预留USB数据。
+
+二、3.5寸LCD模块（ST7796S，34针，16位FSMC）
+屏幕针号   屏幕标号       F407引脚
+ 1         CS             PD7   FSMC_NE1
+ 2         RS             PD11  FSMC_A16
+ 3         WR             PD5   FSMC_NWE
+ 4         RD             PD4   FSMC_NOE
+ 5         RESET          PD6
+ 6         DB0            PD14
+ 7         DB1            PD15
+ 8         DB2            PD0
+ 9         DB3            PD1
+10         DB4            PE7
+11         DB5            PE8
+12         DB6            PE9
+13         DB7            PE10
+14         DB8            PE11
+15         DB9            PE12
+16         DB10           PE13
+17         DB11           PE14
+18         DB12           PE15
+19         DB13           PD8
+20         DB14           PD9
+21         DB15           PD10
+22         GND            GND
+23         BL-CTR         PB15  TIM12_CH2，背光PWM
+24         VCC3.3V        3.3V
+25         VCC3.3V        3.3V
+26         GND            GND
+27         GND            GND
+28         5V             悬空NC，本型号不用
+29         T-MISO         PC4   XPT2046 DOUT
+30         T-MOSI         PB14  XPT2046 DIN
+31         T-PEN          PC5   下降沿中断/上拉
+32         T-BUSY         悬空NC
+33         T-CS           PB12
+34         T-CLK          PB13
+
+此编号只用于本项目随屏资料对应的34针接口。若屏幕PCB版本或针序不同，
+须核对该屏原理图；核心板上的8针TFT接口不能直接套用34针编号。
+LCD命令地址0x60000000，数据地址0x60020000；触摸使用软件SPI。
+
+三、板载MicroSD
+PC8  -> SDIO_D0
+PC12 -> SDIO_CK
+PD2  -> SDIO_CMD
+板载连接，不另接外部SD模块。当前1位模式，PC9/PC10/PC11不占用。
+使用FAT16/FAT32，不支持exFAT；已有CSV可继续读取，不需要重新分区。
+
+四、Air780E 4G载板（随板AIR780E_PIN / 303AIR780E1版本）
+F407 PA2 / USART2_TX -> 载板TXD（P2-5，载板输入，连裸模组MAIN_RXD）
+F407 PA3 / USART2_RX <- 载板RXD（P2-4，载板输出，连裸模组MAIN_TXD）
+F407 GND            -> 载板GND，与4G电源负极共地
+独立稳压5V正极      -> 载板5V（P2-6）
+载板PWRKEY（P2-2）  -> 当前不接F407，使用已核实的板载开机方式
+串口：115200，8数据位，无校验，1停止位，无硬件流控。
+
+本载板端子名采用主机方向，因此是PA2接TXD、PA3接RXD。
+其他Air开发板或裸模组不得机械照搬同名连接，应按实际输入/输出核对。
+5V是此载板电源输入，不是裸Air780E的VBAT输入，也不是串口信号电压。
+4G电源直接供给载板，F407负责信号连接与共地。
+
+五、TTL转RS485（本项目XY-K485自动流向板）
+F407 PB10 / USART3_TX -> 转换板TXD（TTL输入）
+F407 PB11 / USART3_RX <- 转换板RXD（TTL输出）
+F407 3.3V            -> 转换板VCC（仅适用于本款支持3.3V的板）
+F407 GND             -> 转换板GND
+转换板A+             -> 两只传感器A线并联
+转换板B-             -> 两只传感器B线并联
+接大地/Earth端子     -> 保护接地端，不能替代TTL侧GND
+自动流向板无需另接DE/RE控制线。
+
+六、百叶箱和土壤传感器
+百叶箱：Modbus地址2；土壤七合一：Modbus地址1。
+两者均为4800，8N1，接同一条RS485总线，不能使用相同地址。
+
+随本项目传感器线色：
+棕色 -> 12V供电正极（接传感器MOS的OUT+）
+黑色 -> 供电负极（接MOS的OUT-，与系统信号地共参考）
+黄色 -> RS485 A+
+蓝色 -> RS485 B-
+具体电压和线色以实物铭牌/手册为准；12V不接TTL侧或MCU引脚。
+
+七、MOS与供电
+传感器MOS：
+F407 PB0 -> MOS信号IN
+F407 GND -> MOS信号GND
+12V电源正/负 -> MOS电源输入VIN+/VIN-
+MOS输出OUT+/OUT- -> 两只传感器电源正/负
+输入、输出端按实物丝印区分；一块板控制一条支路。
+
+4G MOS预留：PB1可接第二块MOS的信号IN，但当前PB1保持低，
+因此当前接线使用独立常供5V给4G。不要按未来双MOS方案期待自动开4G。
+
+当前推荐供电关系：
+稳压5V -> F407 Type-C或确认的5V输入（二选一供电）
+独立稳压5V -> Air780E载板5V
+12V -> 传感器MOS -> 两只传感器
+F407、Air780E、RS485、传感器电源与MOS信号地保持共同参考。
+
+如采用12V降5V模块：12V只进降压输入，先核实输出5V再接主控/4G。
+未经确认隔离时，不并联USB、调试器和外部电源的供电输出。
+12V不进入F407的GPIO、3.3V或5V针脚。
+
+八、预留电源监测
+PB8 -> 未来INA219 SCL，当前不接
+PB9 -> 未来INA219 SDA，当前不接
+不需要为本版另接电池或INA219；当前没有电池电压/电流采集功能。
+
+九、下载与调试
+PA13 -> 调试器SWDIO
+PA14 -> 调试器SWCLK
+GND  -> 调试器GND
+NRST -> 可选调试复位线
+若调试器需要VTref，按其定义连接3.3V参考；不要把供电输出直接并联。
+
+PA9  / USART1_TX -> USB-TTL适配器RX
+PA10 / USART1_RX <- USB-TTL适配器TX
+GND             -> 适配器GND
+串口115200，8N1；使用与MCU兼容的3.3V逻辑接口。
+
+十、公开配置说明
+本仓库服务器地址、端口、CA证书、设备UID和MQTT密码已脱敏。
+*****表示发布占位，整数端口用0占位；接线完成不代表能直接连原服务器。
+本地联网配置方法见firmware/HerbTouch/README.md的“已脱敏的配置”。

@@ -12,10 +12,10 @@ typedef struct {
     uint32_t target;
     uint32_t previous;
     uint32_t nonce[2];
+    bool carry_snapshot;
 } NodeMoveIntent;
 unsigned NodeSettings_Load(void);
 unsigned NodeSettings_Save(unsigned number);
-unsigned NodeSettings_Status(void);
 const NodeMoveIntent *NodeSettings_PendingMove(void);
 unsigned NodeSettings_BeginMove(const NodeMoveIntent *intent);
 unsigned NodeSettings_FinishMove(bool accepted);

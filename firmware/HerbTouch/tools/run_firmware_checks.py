@@ -14,7 +14,7 @@ if not gcc:raise SystemExit('A host GCC compiler is required.')
 inc=[root/'tools/tests/host',root/'App/UI',root/'App/Model',root/'BSP/LCD',root/'BSP/Touch']
 inc += [root/'App/History',root/'BSP/Storage',root/'ThirdParty/FatFs']
 inc += [root/'App/Diagnostics']
-inc += [root/'App/Node', root/'PublicConfig']
+inc += [root/'App/Node',root/'PublicConfig']
 history_sources=['App/History/history.c','App/History/history_time.c','BSP/Storage/history_fs_fatfs.c','ThirdParty/FatFs/ff.c','tools/tests/host/disk_image.c']
 subprocess.run([sys.executable,str(root/'tools/tests/build_history_fixtures.py')],check=True)
 subprocess.run([sys.executable,str(root/'tools/make_history_demo.py')],check=True)
@@ -36,6 +36,7 @@ for name,sources in [
     ('ui_controls',['tools/tests/host/test_ui_controls.c','tools/tests/host/lcd_capture.c','App/Model/app_model.c','BSP/LCD/bsp_lcd_font.c','App/UI/ui_history.c',*history_sources]),
     ('touch',['tools/tests/host/test_touch.c']),
     ('history',['tools/tests/host/test_history.c',*history_sources]),
+    ('history_adaptive',['tools/tests/host/test_history_adaptive.c','App/History/history.c','App/History/history_time.c']),
     ('history_ui',['tools/tests/host/test_history_ui.c','tools/tests/host/lcd_capture.c','BSP/LCD/bsp_lcd_font.c',*history_sources]),
     ('live_history',['tools/tests/host/test_live_history.c','tools/tests/host/lcd_capture.c','BSP/LCD/bsp_lcd_font.c','App/Node/node_store.c','App/Node/air_sensor.c','App/Node/soil_sensor.c',*history_sources]),
     ('sd_diag',['tools/tests/host/test_sd_diag.c','App/Diagnostics/sd_diag.c',*history_sources]),

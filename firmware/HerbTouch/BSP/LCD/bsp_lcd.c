@@ -2,7 +2,6 @@
 #include "bsp_lcd_font.h"
 #include "tim.h"
 
-static uint16_t s_lcd_id = 0;
 static uint8_t  s_backlight_pct = 50;
 
 static void LCD_WriteReg(uint16_t reg)
@@ -13,11 +12,6 @@ static void LCD_WriteReg(uint16_t reg)
 static void LCD_WriteData(uint16_t data)
 {
     LCD_RAM = data;
-}
-
-static uint16_t LCD_ReadData(void)
-{
-    return LCD_RAM;
 }
 
 static void LCD_HardwareReset(void)
@@ -44,25 +38,7 @@ uint8_t LCD_GetBacklight(void)
     return s_backlight_pct;
 }
 
-uint16_t LCD_ReadID(void)
-{
-    if (s_lcd_id != 0)
-    {
-        return s_lcd_id;
-    }
-
-    LCD_WriteReg(0xD3);
-    (void)LCD_ReadData();           /* Dummy read */
-    (void)LCD_ReadData();           /* 0x00 */
-    uint16_t id = LCD_ReadData();   /* 0x77 */
-    id <<= 8;
-    id |= (LCD_ReadData() & 0xFF);  /* 0x96 */
-
-    s_lcd_id = id;
-    return s_lcd_id;
-}
-
-void LCD_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+static void LCD_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
     if (x1 >= LCD_WIDTH)  x1 = LCD_WIDTH - 1;
     if (y1 >= LCD_HEIGHT) y1 = LCD_HEIGHT - 1;
@@ -88,7 +64,6 @@ void LCD_Init(void)
     __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2, 0);
 
     LCD_HardwareReset();
-    (void)LCD_ReadID();
 
     /* ST7796S Initialization Sequence */
     LCD_WriteReg(0x11);             /* Sleep OUT */

@@ -37,7 +37,6 @@ typedef struct {
 void              Touch_Init(void);
 bool              Touch_IsPressed(void);
 bool              Touch_ReadRaw(uint16_t *x, uint16_t *y);
-bool              Touch_ReadPoint(int16_t *x, int16_t *y);
 
 /* Touch Event Polling (Call every ~10ms from main loop) */
 TouchEvent_t      Touch_Scan(uint32_t now_ms);

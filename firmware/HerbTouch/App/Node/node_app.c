@@ -37,7 +37,7 @@ static enum {CONFIG_IDLE,CONFIG_CHECK,CONFIG_DRAIN,CONFIG_PREPARE,CONFIG_MOVE} c
 static unsigned config_target;
 static unsigned config_previous;
 static uint32_t config_deadline;
-static bool config_offered;
+static bool config_offered,config_carry_snapshot;
 static char debug_line[40];static unsigned debug_size;
 static char debug_tx[512];static unsigned debug_tx_size,debug_tx_pos;
 static bool due(uint32_t now,uint32_t deadline){return (int32_t)(now-deadline)>=0;}
@@ -227,6 +227,7 @@ void Node_Init(void)
     HAL_GPIO_WritePin(SENSOR_PWR_EN_GPIO_Port,SENSOR_PWR_EN_Pin,GPIO_PIN_RESET);
 #endif
     Air780_Init(&modem,modem_send);NodeClock_Init(&local_clock,HAL_GetTick());
+    History_SetTime(0);
     config_stage=CONFIG_IDLE;
     config_offered=false;
     if(NodeSettings_PendingMove()->target) {
@@ -241,7 +242,7 @@ void Node_Init(void)
     if(NODE_AUTO_SENSOR && NodeIdentity_Saved())sensor_start(HAL_GetTick());
     if(NODE_AUTO_MODEM)modem_start(HAL_GetTick());
 }
-static void request_configuration(unsigned target,bool move,uint32_t now)
+static void request_configuration(unsigned target,bool move,bool carry_snapshot,uint32_t now)
 {
     if(config_stage!=CONFIG_IDLE)return;
     if(target<1 || target>NODE_MAX_NUMBER){g_node.config_result=NODECFG_CORRUPT;return;}
@@ -254,6 +255,7 @@ static void request_configuration(unsigned target,bool move,uint32_t now)
     if(move)cycle_finish(now);
 #endif
     config_target=target;
+    config_carry_snapshot=carry_snapshot;
     config_stage=move?CONFIG_DRAIN:CONFIG_CHECK;
     config_deadline=now+90000u;
     g_node.config_result=NODECFG_CONNECTING;
@@ -309,7 +311,7 @@ static void console(uint32_t now)
             Model_SetNode(NodeIdentity_Id());
         }
     }
-    if(command==6 || command==7)request_configuration(g_node.config_node_request,command==7,now);
+    if(command>=6 && command<=8)request_configuration(g_node.config_node_request,command!=6,command==7,now);
 }
 static void sensor_poll(uint32_t now)
 {
@@ -356,14 +358,29 @@ static bool finish_configuration(uint32_t now)
     bool moved=config_stage==CONFIG_MOVE;
     unsigned reply=modem.binding_result;
     if(moved) {
+        const NodeMoveIntent *intent=NodeSettings_PendingMove();
+        bool changed=!NodeIdentity_Saved() || intent->target!=NodeIdentity_Number();
+        bool carry_snapshot=intent->carry_snapshot;
         if(NodeSettings_FinishMove(reply==IDENTITY_BOUND)!=NODECFG_OK) {
             g_node.config_result=NODECFG_RETRY_SAVE;
             return false;
         }
         if(reply==IDENTITY_BOUND) {
             NodeIdentity_SetBinding(IDENTITY_BOUND);
+            if(changed && !carry_snapshot)Model_Init();
             Model_SetNode(NodeIdentity_Id());
             sample_due=now;
+#if NODE_SENSOR_DUTY_CYCLE
+            if(changed)g_sensor_cycle.next_start_ms=now;
+#else
+            if(changed && g_node.sensor_enabled) {
+                sensor_serial.tail=sensor_serial.head;
+                SensorBus_Init(&sensors,sensor_send,now);
+                memset(published_frames,0,sizeof(published_frames));
+                memset(published_valid,0,sizeof(published_valid));
+                sample_due=now+NODE_SENSOR_WARMUP_MS;
+            }
+#endif
             if(NODE_AUTO_SENSOR)sensor_start(now);
         } else if(NodeIdentity_Saved())NodeIdentity_SetBinding(IDENTITY_PENDING);
     }
@@ -380,8 +397,9 @@ static void offer_configuration(void)
         snprintf(request_id,sizeof(request_id),"move-%08lX%08lX",
                  (unsigned long)intent->nonce[0],(unsigned long)intent->nonce[1]);
         snprintf(json,sizeof(json),
-                 "{\"action\":\"move\",\"device_id\":\"node%02u\",\"device_uid\":\"%s\",\"request_id\":\"%s\",\"previous\":%u}",
-                 config_target,NodeIdentity_UID(),request_id,(unsigned)intent->previous);
+                 "{\"action\":\"move\",\"device_id\":\"node%02u\",\"device_uid\":\"%s\",\"request_id\":\"%s\",\"previous\":%u,\"carry_snapshot\":%s}",
+                 config_target,NodeIdentity_UID(),request_id,(unsigned)intent->previous,
+                 intent->carry_snapshot?"true":"false");
     } else {
         if(!nonce_ready)nonce_ready=random_nonce();
         if(!nonce_ready)return;
@@ -476,7 +494,7 @@ static void storage_poll(uint32_t now)
     if(config_stage==CONFIG_PREPARE && !modem.payload_size) {
         if(!nonce_ready)nonce_ready=random_nonce();
         if(!nonce_ready)return;
-        NodeMoveIntent intent={config_target,config_previous,{nonce[0]^nonce[2],nonce[1]^(++sequence)}};
+        NodeMoveIntent intent={config_target,config_previous,{nonce[0]^nonce[2],nonce[1]^(++sequence)},config_carry_snapshot};
         if(NodeSettings_BeginMove(&intent)!=NODECFG_OK) {
             g_node.config_result=NODECFG_RETRY_SAVE;
             return;
@@ -568,6 +586,7 @@ void Node_Poll(uint32_t now)
     console(now); /* Status is available in preview; an explicit START leaves it. */
     NodeClock_Poll(&local_clock,now);
     if(Model_IsDisplayTest()) {
+        History_SetTime(0);
         uint32_t stamp=0;g_node.clock_valid=NodeClock_Get(&local_clock,&stamp);
         g_node.local_seconds=stamp;g_node.clock_source=local_clock.source;
         g_node.node_number=NodeIdentity_Number();g_node.binding_state=NodeIdentity_Binding();return;
@@ -592,6 +611,7 @@ void Node_Poll(uint32_t now)
     }
     uint32_t local_time=0;g_node.clock_valid=NodeClock_Get(&local_clock,&local_time);
     g_node.local_seconds=local_time;g_node.clock_source=local_clock.source;
+    History_SetTime(local_time);
     g_node.node_number=NodeIdentity_Number();g_node.binding_state=NodeIdentity_Binding();
     if(config_stage==CONFIG_IDLE)upload_test_poll(now);
     if(g_node.sensor_enabled || g_node.modem_enabled)storage_poll(now);

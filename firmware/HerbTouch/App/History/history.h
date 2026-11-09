@@ -4,12 +4,14 @@
 #include <stdbool.h>
 
 #define HISTORY_MAX_POINTS 96
+#define HISTORY_RAW_MAX_POINTS 512
 #define HISTORY_METRICS 10
 #define HISTORY_LINE_SIZE 384
 #define HISTORY_CSV_HEADER "timestamp,air_temperature_c,air_humidity_pct,illuminance_lux,soil_temperature_c,soil_moisture_pct,soil_ec_us_cm,soil_ph,soil_n_mg_kg,soil_p_mg_kg,soil_k_mg_kg"
 
 typedef struct {uint16_t year;uint8_t month,day,hour,minute,second;} HistoryDate;
-typedef enum {HISTORY_HOUR,HISTORY_DAY,HISTORY_MONTH} HistoryUnit;
+/* YEAR is a preset only; fixed aggregation remains hour/day/month. */
+typedef enum {HISTORY_HOUR,HISTORY_DAY,HISTORY_MONTH,HISTORY_YEAR} HistoryUnit;
 typedef enum {
     HISTORY_IDLE,HISTORY_FINDING,HISTORY_READING,HISTORY_READY,
     HISTORY_NO_CARD,HISTORY_NO_DATA,HISTORY_FORMAT_ERROR,HISTORY_IO_ERROR
@@ -18,11 +20,14 @@ typedef struct {double sum;float min,max;uint32_t count,first_stamp,last_stamp;}
 typedef struct {
     HistoryStatus status;
     HistoryUnit unit;
-    uint8_t metric,points;
+    uint8_t metric;
+    uint16_t points;
     uint32_t start,end,stride,latest,rows,bad_rows,bad_files,files,resolution_seconds;
     uint32_t boundary[HISTORY_MAX_POINTS+1];
-    HistoryPoint point[HISTORY_MAX_POINTS];
-    bool latest_valid;
+    HistoryPoint point[HISTORY_RAW_MAX_POINTS];
+    uint32_t plot_start;
+    HistoryUnit view;
+    bool latest_valid,adaptive,raw;
 } HistorySeries;
 
 bool HistoryDate_ToSeconds(const HistoryDate *date,uint32_t *seconds);
@@ -37,7 +42,14 @@ void HistoryDate_Format(uint32_t value,char *text,uint32_t capacity);
 void History_Init(void);
 void History_Refresh(uint8_t metric,HistoryUnit unit);
 bool History_Query(uint8_t metric,HistoryUnit unit,uint32_t start,uint32_t end);
+/* Same preset selection rules as the app; fixed bounds, at most 366 days.
+   Raw points are bounded to 512; excess records use complete hourly means. */
+bool History_QueryAdaptive(uint8_t metric,HistoryUnit view,uint32_t start,uint32_t end);
 void History_Default(uint8_t metric,HistoryUnit unit);
+/* Beijing seconds since 2000-01-01. This clock survives History_Init();
+   the node clears it on boot. Zero means time is unavailable. */
+void History_SetTime(uint32_t seconds);
+uint32_t History_Time(void);
 void History_Process(void);
 void History_Cancel(void);
 /* Called only after real CSV data has been synced/closed, never for a test. */

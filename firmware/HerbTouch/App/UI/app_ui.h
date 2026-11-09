@@ -9,7 +9,6 @@ typedef enum {
     UI_PAGE_SOIL,
     UI_PAGE_HISTORY,
     UI_PAGE_SETTINGS,
-    UI_PAGE_DIAGNOSTICS,
     UI_PAGE_COUNT
 } UIPage_t;
 

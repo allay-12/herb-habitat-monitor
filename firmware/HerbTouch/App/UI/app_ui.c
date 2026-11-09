@@ -7,8 +7,6 @@
 #include "node_identity.h"
 #include "node_settings.h"
 #include "history_fs.h"
-#include "diskio.h"
-#include "sd_disk_status.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -16,8 +14,6 @@
 typedef enum {
     MODE_NORMAL = 0,
     MODE_CALIBRATE,
-    MODE_TOUCH_TEST,
-    MODE_DISPLAY_TEST,
     MODE_NODE_CONFIG
 } UIMode_t;
 
@@ -44,12 +40,6 @@ static const uint16_t s_cal_targets[5][2] = {
     { 24, 24 }, { 455, 24 }, { 455, 295 }, { 24, 295 }, { 240, 160 }
 };
 
-/* Display test state */
-static uint8_t   s_disp_test_idx    = 0;
-
-/* Diagnostics last touch */
-static int16_t   s_diag_last_x      = -1;
-static int16_t   s_diag_last_y      = -1;
 static int16_t   s_press_target    = -1;
 static bool      s_cancel_click    = false;
 static bool      s_swallow_touch   = false;
@@ -65,10 +55,7 @@ static void UI_DrawNavBar(void);
 static void UI_DrawOverview(void);
 static void UI_DrawSoil(void);
 static void UI_DrawSettings(void);
-static void UI_DrawDiagnostics(void);
 static void UI_DrawCalibrate(void);
-static void UI_DrawTouchTest(int16_t x, int16_t y);
-static void UI_DrawDisplayTest(uint8_t idx);
 static void UI_BeginCalibrate(void);
 static int16_t UI_HitTarget(int16_t x, int16_t y);
 static void UI_DrawNodeConfig(void);
@@ -321,18 +308,18 @@ static void UI_DrawNodeConfig(void)
         LCD_DrawRect(x,y,108,32,LCD_COLOR_BORDER_GRAY);
         LCD_ShowStringUTF8(x+36,y+8,keys[i],foreground,LCD_COLOR_WHITE);
     }
-    const char *actions[]={"查询占用","确认切换","返回"};
-    for(unsigned i=0;i<3;i++) {
-        uint16_t x=(uint16_t)(12+i*156);
-        LCD_DrawRect(x,220,144,44,LCD_COLOR_BORDER_GRAY);
-        LCD_ShowStringUTF8(x+40,234,actions[i],i==2?LCD_COLOR_DARK_TEXT:foreground,LCD_COLOR_WHITE);
+    const char *actions[]={"查询占用","同点切换","换点切换","返回"};
+    for(unsigned i=0;i<4;i++) {
+        uint16_t x=(uint16_t)(12+i*116);
+        LCD_DrawRect(x,220,108,44,LCD_COLOR_BORDER_GRAY);
+        LCD_ShowStringUTF8(x+22,234,actions[i],i==3?LCD_COLOR_DARK_TEXT:foreground,LCD_COLOR_WHITE);
     }
 }
 static void UI_NodeConfigClick(int16_t x,int16_t y)
 {
     if(y>=276){s_ui_mode=MODE_NORMAL;UI_DrawPage((UIPage_t)(x/120));return;}
     int target=UI_HitTarget(x,y);
-    if(target==44){s_ui_mode=MODE_NORMAL;UI_DrawPage(UI_PAGE_SETTINGS);return;}
+    if(target==45){s_ui_mode=MODE_NORMAL;UI_DrawPage(UI_PAGE_SETTINGS);return;}
     if(node_config_busy())return;
     if(target>=30 && target<42) {
         const int digits[]={1,2,3,-1,4,5,6,-2,7,8,9,0};
@@ -341,58 +328,15 @@ static void UI_NodeConfigClick(int16_t x,int16_t y)
         else if(digit==-2)s_node_choice=0;
         else if(s_node_choice<=NODE_MAX_NUMBER/10)s_node_choice=s_node_choice*10+(unsigned)digit;
         g_node.config_result=NODECFG_MISSING;
-    } else if(target==42 || target==43) {
+    } else if(target>=42 && target<=44) {
         if(!s_node_choice)g_node.config_result=NODECFG_CORRUPT;
         else {
             g_node.config_node_request=s_node_choice;
             g_node.config_result=NODECFG_CONNECTING;
-            g_node.command=target==42?6:7;
+            g_node.command=(uint32_t)(target-36);
         }
     }
     UI_DrawNodeConfig();
-}
-
-static void UI_DrawDiagnostics(void)
-{
-    LCD_Fill(0, 28, 480, 248, LCD_COLOR_WHITE);
-
-    LCD_ShowStringUTF8(12, 40, "ST7796S / XPT2046", LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-
-    char buf[48];
-    uint16_t id = LCD_ReadID();
-    const char *cal_str = (Touch_GetCalStatus() == TOUCH_CAL_READY) ? "已就绪" : "待校准";
-    snprintf(buf, sizeof(buf), "LCD ID：0x%04X     校准：%s", id, cal_str);
-    LCD_ShowStringUTF8(12, 73, buf, LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-
-    if (s_diag_last_x >= 0 && s_diag_last_y >= 0)
-    {
-        snprintf(buf, sizeof(buf), "触摸坐标：%d , %d", s_diag_last_x, s_diag_last_y);
-    }
-    else
-    {
-        snprintf(buf, sizeof(buf), "触摸坐标：-- , --");
-    }
-    LCD_ShowStringUTF8(12, 103, buf, LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-
-    /* These are snapshots, not connectivity probes: drawing must not start a
-       modem, remount the card or add background SD reads. */
-    const char *sd=SDDisk_LastError()?"SD：读写异常":
-        ((disk_status(0)&STA_NOINIT)?"SD：未初始化 · 查看历史时检测":"SD：已初始化 · 本地历史已接入");
-    const char *modem=!g_node.modem_enabled?"4G：未启动":
-        (g_node.online?"4G：已连接":"4G：连接中");
-    LCD_ShowStringUTF8(12, 130, sd, LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-    LCD_ShowStringUTF8(12, 154, modem, LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-    LCD_ShowStringUTF8(12, 178, "RS485：驱动已接入；INA219：预留", LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-
-    /* Touch Test Button */
-    LCD_Fill(12, 205, 222, 44, LCD_COLOR_WHITE);
-    LCD_DrawRect(12, 205, 222, 44, LCD_COLOR_BORDER_GRAY);
-    LCD_ShowStringUTF8(88, 219, "触摸测试", LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-
-    /* Display Test Button */
-    LCD_Fill(246, 205, 222, 44, LCD_COLOR_WHITE);
-    LCD_DrawRect(246, 205, 222, 44, LCD_COLOR_BORDER_GRAY);
-    LCD_ShowStringUTF8(322, 219, "显示测试", LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
 }
 
 static void UI_DrawPage(UIPage_t page)
@@ -415,9 +359,6 @@ static void UI_DrawPage(UIPage_t page)
             break;
         case UI_PAGE_SETTINGS:
             UI_DrawSettings();
-            break;
-        case UI_PAGE_DIAGNOSTICS:
-            UI_DrawDiagnostics();
             break;
         default:
             break;
@@ -481,8 +422,8 @@ static int16_t UI_HitTarget(int16_t x, int16_t y)
     if(s_ui_mode==MODE_NODE_CONFIG) {
         if(y>=104 && y<212 && x>=12 && x<468 && (x-12)%116<108 && (y-104)%36<32)
             return 30+((y-104)/36)*4+(x-12)/116;
-        if(y>=220 && y<264 && x>=12 && x<468 && (x-12)%156<144)
-            return 42+(x-12)/156;
+        if(y>=220 && y<264 && x>=12 && x<468 && (x-12)%116<108)
+            return 42+(x-12)/116;
         return -1;
     }
     if (s_current_page == UI_PAGE_SETTINGS)
@@ -493,58 +434,7 @@ static int16_t UI_HitTarget(int16_t x, int16_t y)
         if (x >= 12 && x < 234 && y >= 152 && y < 196) return 13;
         if (x >= 246 && x < 468 && y >= 152 && y < 196) return 14;
     }
-    if (s_current_page == UI_PAGE_DIAGNOSTICS && y >= 205 && y < 249)
-    {
-        if (x >= 12 && x < 234) return 20;
-        if (x >= 246 && x < 468) return 21;
-    }
     return -1;
-}
-
-static void UI_DrawTouchTest(int16_t x, int16_t y)
-{
-    LCD_Clear(LCD_COLOR_WHITE);
-    LCD_ShowStringUTF8(12, 12, "触摸测试 · 点击顶部返回诊断", LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-
-    if (x >= 0 && y >= 0)
-    {
-        LCD_DrawCross(x, y, 16, LCD_COLOR_RED);
-        char buf[32];
-        snprintf(buf, sizeof(buf), "X=%d  Y=%d", x, y);
-        LCD_ShowString(12, 44, buf, 16, LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-    }
-}
-
-static void UI_DrawDisplayTest(uint8_t idx)
-{
-    switch (idx)
-    {
-        case 0: LCD_Clear(LCD_COLOR_RED);   break;
-        case 1: LCD_Clear(LCD_COLOR_GREEN); break;
-        case 2: LCD_Clear(LCD_COLOR_BLUE);  break;
-        case 3: LCD_Clear(LCD_COLOR_WHITE); break;
-        case 4: LCD_Clear(LCD_COLOR_BLACK); break;
-        case 5:
-            /* Checkerboard */
-            for (uint16_t y = 0; y < 320; y += 20)
-            {
-                for (uint16_t x = 0; x < 480; x += 20)
-                {
-                    uint16_t c = (((x + y) / 20) % 2) ? LCD_COLOR_WHITE : LCD_COLOR_DARK_TEXT;
-                    LCD_Fill(x, y, 20, 20, c);
-                }
-            }
-            break;
-        case 6:
-            /* Border Test */
-            LCD_Clear(LCD_COLOR_WHITE);
-            LCD_DrawRect(0, 0, 480, 320, LCD_COLOR_DARK_TEXT);
-            LCD_DrawRect(4, 4, 472, 312, LCD_COLOR_DARK_TEXT);
-            LCD_ShowStringUTF8(12, 20, "480 × 320 边框测试", LCD_COLOR_DARK_TEXT, LCD_COLOR_WHITE);
-            break;
-        default:
-            break;
-    }
 }
 
 static void UI_HandleNormalClick(int16_t x, int16_t y)
@@ -605,22 +495,6 @@ static void UI_HandleNormalClick(int16_t x, int16_t y)
             UI_BeginCalibrate();
         }
     }
-    else if (s_current_page == UI_PAGE_DIAGNOSTICS)
-    {
-        /* Touch Test */
-        if (x >= 12 && x < 234 && y >= 205 && y < 249)
-        {
-            s_ui_mode = MODE_TOUCH_TEST;
-            UI_DrawTouchTest(-1, -1);
-        }
-        /* Display Test */
-        else if (x >= 246 && x < 468 && y >= 205 && y < 249)
-        {
-            s_ui_mode = MODE_DISPLAY_TEST;
-            s_disp_test_idx = 0;
-            UI_DrawDisplayTest(0);
-        }
-    }
 }
 
 void UI_ShowDataPage(UIPage_t page)
@@ -632,29 +506,8 @@ void UI_ShowDataPage(UIPage_t page)
     UI_DrawPage(page);
 }
 
-void UI_Process(uint32_t now_ms)
+static void UI_ProcessInput(uint32_t now_ms)
 {
-    static uint32_t painted_revision,painted_at;
-    static uint32_t identity_revision;
-    static unsigned history_node=1;
-    if(identity_revision!=NodeIdentity_Revision() && (s_ui_mode==MODE_NORMAL || s_ui_mode==MODE_NODE_CONFIG)) {
-        identity_revision=NodeIdentity_Revision();Model_SetNode(NodeIdentity_Id());UI_DrawStatusBar();
-        if(history_node!=NodeIdentity_Number()) {
-            history_node=NodeIdentity_Number();
-            HistoryFS_SetTestMode(false);
-            HistoryUI_Init();
-            if(s_ui_mode==MODE_NORMAL && s_current_page==UI_PAGE_HISTORY)HistoryUI_Enter();
-        }
-        if(s_ui_mode==MODE_NODE_CONFIG)UI_DrawNodeConfig();
-    }
-    if(s_ui_mode==MODE_NODE_CONFIG && s_node_message!=g_node.config_result)UI_DrawNodeConfig();
-    uint32_t revision=Model_Revision();
-    if(revision!=painted_revision && now_ms-painted_at>=1000 &&
-       s_ui_mode==MODE_NORMAL && !s_sleeping && (s_current_page==UI_PAGE_OVERVIEW || s_current_page==UI_PAGE_SOIL)) {
-        if(s_current_page==UI_PAGE_SOIL)UI_RenderSoil(false);else UI_RenderOverview(false);
-        painted_revision=revision;painted_at=now_ms;
-    }
-    HistoryUI_Process(now_ms);
     /* Check sleep timeout */
     if (!s_sleeping && s_ui_mode == MODE_NORMAL && s_timeouts[s_timeout_idx] > 0)
     {
@@ -702,10 +555,6 @@ void UI_Process(uint32_t now_ms)
             return;
         }
 
-        /* Update Diagnostics touch coordinate */
-        s_diag_last_x = evt.x;
-        s_diag_last_y = evt.y;
-
         if (s_ui_mode == MODE_NORMAL || s_ui_mode==MODE_NODE_CONFIG)
         {
             if(evt.type==TOUCH_EVT_DOWN)
@@ -734,38 +583,6 @@ void UI_Process(uint32_t now_ms)
                     else UI_HandleNormalClick(evt.x, evt.y);
                 }
                 s_press_target = -1;
-            }
-        }
-        else if (s_ui_mode == MODE_TOUCH_TEST)
-        {
-            if (evt.type == TOUCH_EVT_DOWN || evt.type == TOUCH_EVT_MOVE)
-            {
-                if (evt.y < 35 && evt.x < 150)
-                {
-                    /* Exit touch test */
-                    s_ui_mode = MODE_NORMAL;
-                    UI_DrawPage(UI_PAGE_DIAGNOSTICS);
-                }
-                else
-                {
-                    UI_DrawTouchTest(evt.x, evt.y);
-                }
-            }
-        }
-        else if (s_ui_mode == MODE_DISPLAY_TEST)
-        {
-            if (evt.type == TOUCH_EVT_UP)
-            {
-                s_disp_test_idx++;
-                if (s_disp_test_idx < 7)
-                {
-                    UI_DrawDisplayTest(s_disp_test_idx);
-                }
-                else
-                {
-                    s_ui_mode = MODE_NORMAL;
-                    UI_DrawPage(UI_PAGE_DIAGNOSTICS);
-                }
             }
         }
         else if (s_ui_mode == MODE_CALIBRATE)
@@ -833,4 +650,30 @@ void UI_Process(uint32_t now_ms)
             }
         }
     }
+}
+
+void UI_Process(uint32_t now_ms)
+{
+    static uint32_t painted_revision,painted_at;
+    static uint32_t identity_revision;
+    static unsigned history_node=1;
+    if(identity_revision!=NodeIdentity_Revision() && (s_ui_mode==MODE_NORMAL || s_ui_mode==MODE_NODE_CONFIG)) {
+        identity_revision=NodeIdentity_Revision();Model_SetNode(NodeIdentity_Id());UI_DrawStatusBar();
+        if(history_node!=NodeIdentity_Number()) {
+            history_node=NodeIdentity_Number();
+            HistoryFS_SetTestMode(false);
+            HistoryUI_Init();
+            if(s_ui_mode==MODE_NORMAL && s_current_page==UI_PAGE_HISTORY)HistoryUI_Enter();
+        }
+        if(s_ui_mode==MODE_NODE_CONFIG)UI_DrawNodeConfig();
+    }
+    if(s_ui_mode==MODE_NODE_CONFIG && s_node_message!=g_node.config_result)UI_DrawNodeConfig();
+    uint32_t revision=Model_Revision();
+    if(revision!=painted_revision && now_ms-painted_at>=1000 &&
+       s_ui_mode==MODE_NORMAL && !s_sleeping && (s_current_page==UI_PAGE_OVERVIEW || s_current_page==UI_PAGE_SOIL)) {
+        if(s_current_page==UI_PAGE_SOIL)UI_RenderSoil(false);else UI_RenderOverview(false);
+        painted_revision=revision;painted_at=now_ms;
+    }
+    UI_ProcessInput(now_ms);
+    HistoryUI_Process(HAL_GetTick());
 }

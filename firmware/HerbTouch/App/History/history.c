@@ -11,6 +11,11 @@ static char line[HISTORY_LINE_SIZE];
 static uint32_t file_date,newest_date;
 static bool file_open,header_pending,newest_found;
 static uint32_t data_revision;
+static uint32_t current_time;
+/* One bit per occupied hour/day, including partial first and last buckets. */
+static uint8_t occupied_hours[(366*24+1+7)/8],occupied_days[(366+1+7)/8];
+static uint32_t hour_count,day_count,first_stamp,last_stamp;
+static bool adaptive_stats;
 static enum {JOB_NONE,JOB_LIST,JOB_LATEST,JOB_QUERY} job;
 static const char *names[HISTORY_METRICS]={"空气温度","空气湿度","光照","土壤温度","土壤水分","土壤电导率","土壤酸碱度","土壤氮（参考）","土壤磷（参考）","土壤钾（参考）"};
 static const char *units[HISTORY_METRICS]={"℃","%","lx","℃","%","μS/cm","pH","mg/kg","mg/kg","mg/kg"};
@@ -44,12 +49,15 @@ bool History_ParseRow(char *s,uint32_t *stamp,float v[HISTORY_METRICS],uint16_t 
 }
 static void close_job(void)
 {
-    HistoryFS_Close();HistoryFS_ListEnd();file_open=false;job=JOB_NONE;
+    HistoryFS_Close();HistoryFS_ListEnd();file_open=false;job=JOB_NONE;adaptive_stats=false;
 }
 void History_Init(void){close_job();memset(&series,0,sizeof(series));data_revision=0;}
 void History_NotifyWrite(uint32_t stamp)
 {data_revision++;if(!series.latest_valid || stamp>series.latest){series.latest=stamp;series.latest_valid=true;}}
 uint32_t History_DataRevision(void){return data_revision;}
+void History_SetTime(uint32_t seconds)
+{current_time=seconds>=757382400u && seconds<=3155759999u?seconds:0;}
+uint32_t History_Time(void){return current_time;}
 void History_Cancel(void){close_job();if(series.status==HISTORY_READING || series.status==HISTORY_FINDING)series.status=HISTORY_IDLE;}
 static void fail(HistoryFSResult r)
 {
@@ -67,8 +75,10 @@ static uint32_t unit_count(uint32_t start,uint32_t end,HistoryUnit u)
 bool History_Query(uint8_t metric,HistoryUnit unit,uint32_t start,uint32_t end)
 {
     HistoryFSResult r;uint32_t cursor,next,n;
-    if(metric>=HISTORY_METRICS || (unsigned)unit>HISTORY_MONTH || start>=end || end>3155759999u)return false;
+    /* End is exclusive, so the last supported day can end at 2100-01-01. */
+    if(metric>=HISTORY_METRICS || (unsigned)unit>HISTORY_MONTH || start>=end || end>3155760000u)return false;
     close_job();HistoryFS_SelectMetric(metric);series.metric=metric;series.unit=unit;series.start=start;series.end=end;
+    series.adaptive=series.raw=false;series.plot_start=start;
     series.rows=series.bad_rows=series.bad_files=series.files=0;series.points=0;
     memset(series.point,0,sizeof(series.point));
     cursor=HistoryDate_Floor(start,unit);n=unit_count(cursor,end,unit);
@@ -93,19 +103,36 @@ bool History_Query(uint8_t metric,HistoryUnit unit,uint32_t start,uint32_t end)
     series.status=HISTORY_READING;job=JOB_QUERY;
     return true;
 }
+bool History_QueryAdaptive(uint8_t metric,HistoryUnit view,uint32_t start,uint32_t end)
+{
+    if((unsigned)view>HISTORY_YEAR || start>=end)return false;
+    uint32_t limit=view==HISTORY_HOUR?3600u:view==HISTORY_DAY?86400u:view==HISTORY_MONTH?30u*86400u:366u*86400u;
+    if(end-start>limit)return false;
+    if(!History_Query(metric,HISTORY_HOUR,start,end))return false;
+    series.adaptive=series.raw=true;series.view=view;series.points=0;
+    series.resolution_seconds=0;series.stride=1;
+    memset(occupied_hours,0,sizeof(occupied_hours));memset(occupied_days,0,sizeof(occupied_days));
+    hour_count=day_count=0;first_stamp=UINT32_MAX;last_stamp=0;
+    adaptive_stats=job==JOB_QUERY;
+    return true;
+}
 void History_Default(uint8_t metric,HistoryUnit unit)
 {
-    uint32_t start,end;
-    if(!series.latest_valid){History_Refresh(metric,unit);return;}
-    if(unit==HISTORY_HOUR){end=series.latest-series.latest%60u+60u;start=end>=3600u?end-3600u:0;}
-    else if(unit==HISTORY_DAY){end=series.latest-series.latest%60u+60u;start=end>=86400u?end-86400u:0;}
-    else {end=HistoryDate_Floor(series.latest,HISTORY_DAY)+86400u;start=end>=30u*86400u?end-30u*86400u:0;}
-    History_Query(metric,unit==HISTORY_DAY?HISTORY_HOUR:unit==HISTORY_MONTH?HISTORY_DAY:unit,start,end);
+    uint32_t start,end,anchor=current_time?current_time:series.latest;
+    if(!current_time && !series.latest_valid){History_Refresh(metric,unit);return;}
+    if(unit==HISTORY_HOUR){end=anchor-anchor%60u+60u;start=end>=3600u?end-3600u:0;}
+    else if(unit==HISTORY_DAY){end=anchor-anchor%60u+60u;start=end>=86400u?end-86400u:0;}
+    else {uint32_t span=(unit==HISTORY_YEAR?365u:30u)*86400u;
+        end=anchor-anchor%60u+60u;start=end>=span?end-span:0;}
+    History_QueryAdaptive(metric,unit,start,end);
 }
 void History_Refresh(uint8_t metric,HistoryUnit unit)
 {
     HistoryFSResult r;
-    close_job();HistoryFS_SelectMetric(metric);series.metric=metric;series.unit=unit;series.status=HISTORY_FINDING;
+    if(metric>=HISTORY_METRICS || (unsigned)unit>HISTORY_YEAR)return;
+    if(current_time){History_Default(metric,unit);return;}
+    close_job();HistoryFS_SelectMetric(metric);series.metric=metric;series.unit=HISTORY_HOUR;series.view=unit;series.status=HISTORY_FINDING;
+    series.adaptive=true;series.raw=false;
     series.points=0;series.rows=series.bad_rows=series.bad_files=series.files=0;
     series.latest_valid=false;newest_found=false;newest_date=0;
     r=HistoryFS_Mount();if(r!=HFS_OK){fail(r);return;}
@@ -122,11 +149,55 @@ static void consume(uint32_t t,float value)
 {
     unsigned lo=0,hi=series.points;
     if(t<series.start || t>=series.end)return;
-    while(lo+1<hi){unsigned m=(lo+hi)/2;if(t<series.boundary[m])hi=m;else lo=m;}
+    if(!series.rows || t<series.plot_start)series.plot_start=t;
+    if(series.adaptive) {
+        if(adaptive_stats) {
+            unsigned h=t/3600u-series.start/3600u,d=t/86400u-series.start/86400u;
+            if(!(occupied_hours[h/8]&(1u<<(h%8)))){occupied_hours[h/8]|=(uint8_t)(1u<<(h%8));hour_count++;}
+            if(!(occupied_days[d/8]&(1u<<(d%8)))){occupied_days[d/8]|=(uint8_t)(1u<<(d%8));day_count++;}
+            if(t<first_stamp)first_stamp=t;
+            if(t>last_stamp)last_stamp=t;
+        }
+        /* Sparse buckets preserve exact hour/day boundaries across empty dates.
+           A raw point is one CSV record, including records in the same minute. */
+        uint32_t key=series.raw?t:HistoryDate_Floor(t,series.unit);
+        while(lo<hi){unsigned m=(lo+hi)/2;
+            uint32_t k=series.raw?series.point[m].first_stamp:series.boundary[m];
+            if(k<key || (series.raw&&k==key))lo=m+1;else hi=m;}
+        if(series.raw || lo==series.points || series.boundary[lo]!=key) {
+            if(series.points==HISTORY_RAW_MAX_POINTS){series.rows++;return;}
+            /* Adaptive aggregate choices occupy <=90 bins; use the existing
+               boundary array as sorted sparse keys instead of recalculating
+               calendar floors for every binary-search comparison. */
+            if(!series.raw){memmove(&series.boundary[lo+1],&series.boundary[lo],(series.points-lo)*sizeof(uint32_t));series.boundary[lo]=key;}
+            memmove(&series.point[lo+1],&series.point[lo],(series.points-lo)*sizeof(HistoryPoint));
+            memset(&series.point[lo],0,sizeof(HistoryPoint));series.points++;
+        }
+    } else while(lo+1<hi){unsigned m=(lo+hi)/2;if(t<series.boundary[m])hi=m;else lo=m;}
     HistoryPoint *p=&series.point[lo];
     if(!p->count){p->min=p->max=value;p->first_stamp=p->last_stamp=t;}
     else{if(value<p->min)p->min=value;if(value>p->max)p->max=value;if(t<p->first_stamp)p->first_stamp=t;if(t>p->last_stamp)p->last_stamp=t;}
     p->sum+=value;p->count++;series.rows++;
+}
+static bool adaptive_rescan(void)
+{
+    HistoryUnit grain=HISTORY_HOUR;bool raw;
+    if(series.view==HISTORY_HOUR)raw=true;
+    else if(series.view==HISTORY_DAY)raw=series.rows<=24;
+    else raw=last_stamp-first_stamp<=86400u;
+    if(!raw) {
+        if(series.view>=HISTORY_MONTH && hour_count>72)grain=HISTORY_DAY;
+        if(series.view==HISTORY_YEAR && day_count>90)grain=HISTORY_MONTH;
+    }
+    if(raw && series.rows<=HISTORY_RAW_MAX_POINTS)return false;
+    adaptive_stats=false;series.raw=false;series.unit=grain;
+    series.resolution_seconds=grain==HISTORY_HOUR?3600u:grain==HISTORY_DAY?86400u:0;
+    series.points=0;series.rows=series.bad_rows=series.bad_files=series.files=0;
+    memset(series.point,0,sizeof(series.point));
+    HistoryFSResult r=HistoryFS_ListBegin();
+    if(r==HFS_MISSING){job=JOB_NONE;series.status=HISTORY_NO_DATA;}
+    else if(r!=HFS_OK)fail(r);
+    return true;
 }
 void History_Process(void)
 {
@@ -151,6 +222,8 @@ void History_Process(void)
             if(r==HFS_SKIP)continue;
             if(r==HFS_END) {
                 HistoryFS_ListEnd();
+                if(adaptive_stats && series.rows && adaptive_rescan())continue;
+                adaptive_stats=false;
                 job=JOB_NONE;
                 series.status=series.rows?HISTORY_READY:((series.bad_rows||series.bad_files)?HISTORY_FORMAT_ERROR:HISTORY_NO_DATA);
                 break;
@@ -172,7 +245,7 @@ void History_Process(void)
                 HistoryFS_Close();file_open=false;
                 if(job==JOB_LATEST) {
                     job=JOB_NONE;
-                    if(series.latest_valid)History_Default(series.metric,series.unit);
+                    if(series.latest_valid)History_Default(series.metric,series.view);
                     else series.status=series.bad_rows||series.bad_files?HISTORY_FORMAT_ERROR:HISTORY_NO_DATA;
                 }
                 continue;

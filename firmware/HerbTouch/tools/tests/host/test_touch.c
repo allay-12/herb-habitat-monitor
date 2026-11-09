@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include "bsp_touch.c"
-static unsigned failures;
+static unsigned failures,pen_reads;
 #define CHECK(c,msg) do {if(!(c)){printf("FAIL: %s\n",msg);failures++;}} while(0)
 uint32_t HAL_GetTick(void) {return 0;}
 void HAL_GPIO_WritePin(void *p,uint16_t n,GPIO_PinState s) {(void)p;(void)n;(void)s;}
-GPIO_PinState HAL_GPIO_ReadPin(void *p,uint16_t n) {(void)p;(void)n;return GPIO_PIN_SET;}
+GPIO_PinState HAL_GPIO_ReadPin(void *p,uint16_t n) {(void)p;if(n==TP_PEN_Pin)pen_reads++;return GPIO_PIN_SET;}
 static const int target[5][2]={{24,24},{455,24},{455,295},{24,295},{240,160}};
 static void record_good(void) {
     Touch_StartCalibrate();
@@ -26,6 +26,16 @@ int main(void) {
     record_good();CHECK(Touch_FinishCalibrate(),"good calibration restored");
     Touch_StartCalibrate();Touch_RecordCalPoint(0,3560,368);
     CHECK(!Touch_FinishCalibrate(),"new calibration cannot reuse stale points from previous attempt");
+    Touch_Init();
+    s_last_pressed=true;s_last_x=100;s_last_y=200;
+    TouchEvent_t release=Touch_Scan(0);
+    CHECK(release.type==TOUCH_EVT_UP && release.x==100 && release.y==200,
+          "first scan immediately delivers a pending release");
+    unsigned reads=pen_reads;
+    for(uint32_t tick=1;tick<TOUCH_SCAN_INTERVAL_MS;tick++)Touch_Scan(tick);
+    CHECK(pen_reads==reads,"faster main-loop polling does not oversample touch");
+    Touch_Scan(TOUCH_SCAN_INTERVAL_MS);
+    CHECK(pen_reads==reads+1,"touch scans resume at the configured interval");
     printf("Touch calibration regression failures: %u\n",failures);
     return failures?1:0;
 }

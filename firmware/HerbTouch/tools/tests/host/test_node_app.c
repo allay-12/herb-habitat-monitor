@@ -166,6 +166,7 @@ int main(int argc,char **argv)
     snprintf(test_urc,sizeof(test_urc),"+MSUB:%s,%u,%s\r\n",NodeIdentity_AckTopic(),(unsigned)strlen(test_ack),test_ack);
     modem_reply(test_urc);advance(1100);advance(1100);
     CHECK(NodeSettings_PendingMove()->target==1234&&strstr(modem.payload,"\"previous\":1")&&
+          strstr(modem.payload,"\"carry_snapshot\":true")&&
           f_stat(old_queue.path,&archive_info)==FR_NO_FILE,"old queue drained before sending a durable move");
     char original_move[256];
     snprintf(original_move,sizeof(original_move),"%.255s",modem.payload);

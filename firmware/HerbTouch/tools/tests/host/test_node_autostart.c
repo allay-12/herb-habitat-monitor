@@ -25,6 +25,11 @@ int main(int argc,char **argv)
     modem_step("AT+CGMR","host-firmware\r\nOK\r\n");modem_step("AT+CPIN?","+CPIN: READY\r\nOK\r\n");
     modem_step("AT+CEREG?","+CEREG:0,1\r\nOK\r\n");modem_step("AT+CGATT?","+CGATT:1\r\nOK\r\n");
     modem_step("AT+CCLK?","+CCLK: \"26/11/04,20:00:00+32\"\r\nOK\r\n");
+    uint32_t boot_time;
+    CHECK(HistoryDate_Parse("2026-11-04 20:00:00",&boot_time) &&
+          History_Time()==boot_time && g_node.clock_valid &&
+          !g_node.samples && !g_node.stored && !modem.online,
+          "boot synchronizes the history clock before MQTT connects or telemetry uploads");
     modem_step("AT+MDISCONNECT","ERROR\r\n");modem_step("AT+MIPCLOSE","ERROR\r\n");
     modem_step("AT+FSCREATE","ERROR\r\n");modem_step("AT+FSWRITE","> ");
     modem_step("-----BEGIN CERTIFICATE-----","OK\r\n");

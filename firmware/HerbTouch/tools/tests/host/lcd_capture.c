@@ -10,6 +10,7 @@ unsigned test_lcd_missing_glyphs,test_lcd_out_of_bounds;
 unsigned test_lcd_full_history_clears,test_lcd_chart_clears;
 unsigned test_lcd_red_cursor_lines;
 char test_lcd_point_detail[256];
+char test_lcd_history_range[80];
 void LCD_DrawPoint(uint16_t x,uint16_t y,uint16_t c)
 {
     if(x>=480||y>=320){test_lcd_out_of_bounds++;return;}pixels[y][x]=c;
@@ -38,6 +39,7 @@ void LCD_ShowChar(uint16_t x,uint16_t y,char ch,uint8_t size,uint16_t fg,uint16_
 }
 void LCD_ShowString(uint16_t x,uint16_t y,const char *s,uint8_t size,uint16_t fg,uint16_t bg)
 {
+    if(x==8&&y==123)snprintf(test_lcd_history_range,sizeof(test_lcd_history_range),"%s",s);
     if(x==8&&y==258)snprintf(test_lcd_point_detail,sizeof(test_lcd_point_detail),"%s",s);
     unsigned w=size==24?12:8;
     for(;*s&&x+w<=480;s++,x+=w)LCD_ShowChar(x,y,*s,size,fg,bg);

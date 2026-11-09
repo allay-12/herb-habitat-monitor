@@ -26,7 +26,6 @@ static void capture_text(uint16_t x,uint16_t y,const char *s,uint16_t f,uint16_t
 }
 uint32_t HAL_GetTick(void){return tick;}
 void LCD_Init(void){}
-uint16_t LCD_ReadID(void){return 0x7796;}
 void LCD_SetBacklight(uint8_t value){backlight=value;}
 uint8_t LCD_GetBacklight(void){return backlight;}
 void LCD_DrawCross(uint16_t x,uint16_t y,uint16_t s,uint16_t c)
@@ -59,6 +58,15 @@ int main(int argc,char **argv)
 {
     if(argc!=4)return 2;
     TestDisk_SetImage(argv[1]);
+    history_mode(0);
+    event(TOUCH_EVT_DOWN,60,298);
+    uint32_t start,end;
+    CHECK(HistoryDate_Parse("2026-10-01 00:00:00",&start) &&
+          HistoryDate_Parse("2026-11-01 00:00:00",&end) &&
+          History_Query(0,HISTORY_DAY,start,end),"start a pending history query");
+    unsigned reads_on_release=test_disk_reads;
+    event(TOUCH_EVT_UP,60,298);
+    CHECK(test_disk_reads==reads_on_release,"navigation release cancels history before the next SD read");
     const UIPage_t destinations[]={UI_PAGE_OVERVIEW,UI_PAGE_SOIL,UI_PAGE_SETTINGS};
     for(unsigned mode=0;mode<3;mode++)for(unsigned tab=0;tab<3;tab++){
         history_mode(mode);int x=destinations[tab]*120+60;
@@ -91,19 +99,9 @@ int main(int argc,char **argv)
     CHECK(s_brightness==10&&backlight==10,"minus clamps safely at 10 percent");
     for(unsigned i=0;i<15;i++)click(332,55);
     CHECK(s_brightness==100&&backlight==100,"plus clamps at 100 percent");
-    labels[0]=0;UI_DrawPage(UI_PAGE_DIAGNOSTICS);
-    CHECK(!strstr(labels,"预留：4G")&&!strstr(labels,"INA219 / SD"),"diagnostics no longer labels implemented 4G and SD as reserved");
-    CHECK(strstr(labels,"4G：未启动")&&strstr(labels,"SD："),"diagnostics reports stopped modem separately from SD");
-    snprintf(path,sizeof(path),"%s/diagnostics-controls.ppm",argv[2]);TestLCD_Save(path);
-    g_node.modem_enabled=1;labels[0]=0;UI_DrawDiagnostics();
-    CHECK(strstr(labels,"4G：连接中"),"enabled modem is not falsely reported online");
-    g_node.online=1;labels[0]=0;UI_DrawDiagnostics();
-    CHECK(strstr(labels,"4G：已连接"),"only actual online flag reports connected");
-    g_node.online=g_node.modem_enabled=0;test_disk_fail_reads=1;labels[0]=0;UI_DrawDiagnostics();
-    CHECK(strstr(labels,"SD：读写异常"),"SD I/O failure is visible without retrying reads");
     CHECK(!test_lcd_missing_glyphs&&!test_lcd_out_of_bounds,"new controls and status labels render within screen with complete fonts");
-    CHECK(test_disk_writes==0,"navigation/settings/diagnostics never write SD card");
-    test_disk_fail_reads=0;TestDisk_SetImage(argv[3]);TestDisk_AllowWrites(1);
+    CHECK(test_disk_writes==0,"navigation/settings never write SD card");
+    TestDisk_SetImage(argv[3]);TestDisk_AllowWrites(1);
     NodeIdentity_Init(0x11111111,0x22222222,0x33333333);History_Init();NodeSettings_Load();
     s_ui_mode=MODE_NORMAL;UI_DrawPage(UI_PAGE_SETTINGS);click(350,174);
     CHECK(s_ui_mode==MODE_NODE_CONFIG,"settings opens manual node editor on release");
@@ -111,11 +109,14 @@ int main(int argc,char **argv)
     CHECK(s_node_choice==1001&&!NodeIdentity_Saved(),"keypad accepts a four-digit node number");
     click(65,243);
     CHECK(g_node.command==6&&g_node.config_node_request==1001&&!NodeIdentity_Saved(),"query uses online command without changing SD identity");
-    g_node.command=0;g_node.config_result=NODECFG_OCCUPIED;
+    labels[0]=0;g_node.command=0;g_node.config_result=NODECFG_OCCUPIED;
     event(TOUCH_EVT_NONE,0,0);CHECK(strstr(labels,"节点已被其他设备占用"),"server conflict appears on the settings screen");
     g_node.sensor_enabled=1;
     click(220,243);
     CHECK(g_node.command==7&&g_node.config_node_request==1001&&!NodeIdentity_Saved(),"confirmation works while acquisition is enabled");
+    g_node.command=0;g_node.config_result=NODECFG_AVAILABLE;
+    click(300,243);
+    CHECK(g_node.command==8&&g_node.config_node_request==1001,"new site requests a move without snapshot");
     click(60,298);CHECK(s_ui_mode==MODE_NORMAL&&s_current_page==UI_PAGE_OVERVIEW,"navigation works while server confirmation is pending");
     g_node.command=0;g_node.sensor_enabled=0;
     CHECK(!test_lcd_missing_glyphs&&!test_lcd_out_of_bounds,"node editor fits the framebuffer with all Chinese glyphs");

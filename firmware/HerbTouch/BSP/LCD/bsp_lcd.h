@@ -32,10 +32,8 @@
 
 /* Public API */
 void     LCD_Init(void);
-uint16_t LCD_ReadID(void);
 void     LCD_SetBacklight(uint8_t percent);
 uint8_t  LCD_GetBacklight(void);
-void     LCD_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void     LCD_Clear(uint16_t color);
 void     LCD_Fill(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void     LCD_DrawPoint(uint16_t x, uint16_t y, uint16_t color);

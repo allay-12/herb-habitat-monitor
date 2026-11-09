@@ -19,7 +19,6 @@ static unsigned soil_values;
 
 uint32_t HAL_GetTick(void) { return tick; }
 void LCD_Init(void) {}
-uint16_t LCD_ReadID(void) { return 0x7796; }
 void LCD_SetBacklight(uint8_t p) { backlight=p; }
 uint8_t LCD_GetBacklight(void) { return backlight; }
 void LCD_Clear(uint16_t c) {(void)c;}
@@ -79,7 +78,7 @@ int main(void) {
     CHECK(s_ui_mode==MODE_CALIBRATE && s_cal_step==0,"cold start enters calibration without guessed-coordinate navigation");
     reset_ready();
     for(unsigned p=0;p<UI_PAGE_COUNT;p++)UI_DrawPage((UIPage_t)p);
-    s_cal_step=0;UI_DrawCalibrate();UI_DrawTouchTest(20,50);
+    s_cal_step=0;UI_DrawCalibrate();
     CHECK(missing_glyphs==0,"real UI strings all have glyphs (including punctuation and micro sign)");
     Model_SetAir(true,-10.1f,65.8f,100000,1000);UI_DrawOverview();
     CHECK(saw_temperature && saw_humidity && saw_light,"real valid air readings render in overview");

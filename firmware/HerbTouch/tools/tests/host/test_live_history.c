@@ -35,7 +35,8 @@ int main(int argc,char **argv)
     unsigned populated=0;for(unsigned i=0;i<s->points;i++)if(s->point[i].count)populated++;
     CHECK(populated==2,"consecutive minute samples produce two curve points");
     CHECK(s->end==stamp("2026-11-04 21:02:00"),"live hour range follows the newest record");
-    unsigned new_ink=0;for(unsigned x=PLOT_X+PLOT_W-10;x<PLOT_X+PLOT_W;x++)if(TestLCD_Pixel(x,PLOT_Y)==LCD_COLOR_BLUE)new_ink++;
+    unsigned new_ink=0;int newest_x=point_x(s,s->points-1);
+    for(int x=newest_x-2;x<=newest_x+2;x++)if(TestLCD_Pixel((unsigned)x,PLOT_Y)==LCD_COLOR_BLUE)new_ink++;
     CHECK(new_ink>0,"new point is actually painted even when the SD query finishes within one Process call");
     CHECK(test_lcd_chart_clears==clears,"automatic append must not blank the chart before painting the new point");
     snprintf(image,sizeof(image),"%s/live-appended.ppm",argv[2]);TestLCD_Save(image);
@@ -67,7 +68,59 @@ int main(int argc,char **argv)
     middle=(point_x(s,earlier)+point_x(s,later))/2;ink=0;
     for(int y=PLOT_Y;y<PLOT_Y+PLOT_H;y++)
         if(TestLCD_Pixel((unsigned)middle,(unsigned)y)==LCD_COLOR_BLUE)ink++;
-    CHECK(ink==0,"a real missed thirty-minute interval remains a gap");
+    CHECK(ink>0,"adaptive raw points remain connected across sparse intervals as in the app");
+    uint32_t live_now=stamp("2026-11-04 22:05:28");
+    unsigned writes_before_time=test_disk_writes;
+    History_SetTime(live_now);
+    HistoryUI_Process(now+=1500);finish();s=History_Get();
+    CHECK(s->end==stamp("2026-11-04 22:06:00") && s->start==s->end-3600,
+          "boot clock moves the hour axis without a new SD record or upload");
+    CHECK(s->rows==2,"the current-time window keeps only records in the last hour");
+    unsigned reads_with_time=test_disk_reads;
+    for(unsigned i=1;i<=20;i++) {
+        History_SetTime(live_now+i);
+        HistoryUI_Process(now+=100);
+    }
+    CHECK(test_disk_reads==reads_with_time,"second ticks do not repeatedly scan SD within the same minute");
+    History_SetTime(stamp("2026-11-04 22:06:01"));
+    HistoryUI_Process(now+=1500);finish();
+    CHECK(s->end==stamp("2026-11-04 22:07:00"),"live range advances at a minute boundary without new samples");
+    click(270,52);
+    HistoryDate_FromSeconds(stamp("2026-11-04 21:00:00"),&edit[0]);
+    HistoryDate_FromSeconds(stamp("2026-11-04 22:00:00"),&edit[1]);
+    edit_unit=HISTORY_HOUR;click(390,250);finish();
+    a=s->start;b=s->end;
+    reads_with_time=test_disk_reads;
+    History_SetTime(stamp("2026-11-04 22:07:01"));
+    HistoryUI_Process(now+=1500);finish();
+    CHECK(s->start==a && s->end==b && test_disk_reads==reads_with_time,
+          "a selected custom period stays fixed when the clock advances");
+    HistoryUI_SelectMetric(0);HistoryUI_Enter();finish();
+    CHECK(s->end==stamp("2026-11-04 22:08:00"),"card shortcut opens the current hour even after a custom query");
+    History_SetTime(stamp("2026-11-07 12:34:56"));
+    click(102,98);finish();
+    CHECK(s->end==stamp("2026-11-07 12:35:00") && s->end-s->start==86400,
+          "day preset uses the current 24-hour window before a new sample");
+    click(166,98);finish();
+    CHECK(s->end==stamp("2026-11-07 12:35:00") && s->end-s->start==30u*86400u&&!s->raw&&s->unit==HISTORY_HOUR&&s->rows==11&&s->points==5,
+          "30-day preset follows current time and keeps the five occupied hours across sparse SD dates");
+    reads_with_time=test_disk_reads;
+    History_SetTime(stamp("2026-11-07 12:35:01"));
+    HistoryUI_Process(now+=1500);finish();
+    CHECK(test_disk_reads>reads_with_time&&s->end==stamp("2026-11-07 12:36:00"),"month preset advances its rolling endpoint each minute");
+    CHECK(test_disk_writes==writes_before_time,"clock synchronization never creates a telemetry or SD sample");
+    HistoryUI_Leave();NodeIdentity_Select(9999,true);HistoryUI_Init();HistoryUI_Enter();finish();
+    CHECK(s->status==HISTORY_NO_DATA,"new node has no historical records");
+    History_SetTime(stamp("2026-11-07 12:36:01"));
+    HistoryUI_Process(now+=1500);finish();
+    CHECK(strstr(test_lcd_history_range,"2026-11-07 12:37"),
+          "an empty new node visibly updates the range after clock sync");
+    History_SetTime(stamp("2099-12-31 23:59:59"));
+    History_Refresh(0,HISTORY_HOUR);finish();
+    CHECK(s->end==3155760000u && s->end-s->start==3600,
+          "current-time presets include the final minute of the supported date range");
+    NodeIdentity_Select(1,false);
+    History_SetTime(0);
     CHECK(!test_lcd_missing_glyphs&&!test_lcd_out_of_bounds,"live plot remains within framebuffer");
     printf("Live SD/chart/selection regression failures: %u\n",failures);return failures?1:0;
 }

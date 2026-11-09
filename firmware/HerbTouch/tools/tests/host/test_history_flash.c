@@ -23,7 +23,7 @@ int main(int argc,char **argv)
     TestDisk_SetImage(argv[1]);HistoryUI_Init();HistoryUI_Enter();finish();
     CHECK(History_Get()->status==HISTORY_READY,"sparse real FAT fixture loaded");
     unsigned reads=test_disk_reads;
-    click(212,98); /* Recent month with one actual day on card. */
+    click(230,98); /* Recent year with one actual day on card. */
     unsigned clears=test_lcd_full_history_clears,chart=test_lcd_chart_clears;
     uint32_t generation=HistoryFS_Generation();
     finish();

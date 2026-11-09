@@ -5,7 +5,17 @@ STM32F407VET6 主固件，包含 ST7796S 触摸界面、板载 SD 卡历史记�
 - CubeMX 配置见 [HerbTouch.ioc](HerbTouch.ioc)，生成环境为 CubeMX 6.16.1、STM32Cube FW_F4 V1.28.3。
 - 用 Keil µVision 打开 [HerbTouch.uvprojx](MDK-ARM/HerbTouch.uvprojx)。工程使用 Arm Compiler 5 和 STM32F4 Device Family Pack。
 - 引脚和接线备注见 [JSON](docs/pin_manifest.json) 或 [CSV](docs/pin_manifest.csv)。百叶箱和土壤探头共享 RS485，地址分别为 2 和 1，波特率 4800。
+- 完整接线表见 [引脚连接 TXT](../../docs/PIN_CONNECTIONS.txt)，包括屏幕34针定义，以及 PB1、PA1、INA219 当前的预留状态。
+- 最新历史图、开机校时及节点换绑变化见 [修改记录](../../CHANGELOG.md)；本地历史规则见 [历史说明](../../docs/HISTORY.md)。
 - 安装 Python 3 和主机 GCC 后，在仓库根目录运行 `python firmware/HerbTouch/tools/run_firmware_checks.py`。回归测试使用模拟串口和合成 SD 数据。
+
+## 当前行为
+
+历史页提供近1小时、24小时、30天、365天，按有效记录数量/跨度选择原始记录或小时、天、自然月均值，直接读取本机 SD。点选显示时间和数值，横轴从首条有效记录开始；开机网络校时后按当前时间推进默认范围。
+
+节点配置支持1～9999，实际占用与换绑由匹配的服务器确认。“同一地点”允许服务器在新节点展示当前快照；“更换地点”清除旧地点的实时显示并重新采集。首次联网仍需配置本设备的独立凭据，并由服务器实现相应绑定接口。
+
+PB0 每15分钟开5分钟，PB1 继续预留/低电平，Air780E 使用独立常供5V。PA1、INA219 和电池监测暂未启用。最新源码已通过16组主机回归和 Keil 编译；本次发布没有进行实板烧录。
 
 ## 已脱敏的配置
 

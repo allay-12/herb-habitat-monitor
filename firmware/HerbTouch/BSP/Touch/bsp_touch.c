@@ -13,6 +13,7 @@
 
 #define CMD_READ_X      0xD0
 #define CMD_READ_Y      0x90
+#define TOUCH_SCAN_INTERVAL_MS 5u
 
 static TouchCalib_t s_calib = {
     .x_scale  = 0.133f,
@@ -28,6 +29,7 @@ static uint16_t s_cal_raw_y[5];
 static uint8_t s_cal_mask = 0;
 static TouchCalib_t s_good_calib;
 
+static uint32_t s_last_scan_ms;
 static bool s_last_pressed = false;
 static int16_t s_last_x = -1;
 static int16_t s_last_y = -1;
@@ -97,6 +99,7 @@ static uint16_t Touch_ReadADC(uint8_t cmd)
 
 void Touch_Init(void)
 {
+    s_last_scan_ms = HAL_GetTick() - TOUCH_SCAN_INTERVAL_MS;
     TP_CS_HIGH();
     TP_CLK_LOW();
     TP_MOSI_LOW();
@@ -154,7 +157,7 @@ bool Touch_ReadRaw(uint16_t *x, uint16_t *y)
     return true;
 }
 
-bool Touch_ReadPoint(int16_t *x, int16_t *y)
+static bool Touch_ReadPoint(int16_t *x, int16_t *y)
 {
     uint16_t raw_x = 0, raw_y = 0;
     if (!Touch_ReadRaw(&raw_x, &raw_y)) return false;
@@ -184,8 +187,9 @@ bool Touch_ReadPoint(int16_t *x, int16_t *y)
 
 TouchEvent_t Touch_Scan(uint32_t now_ms)
 {
-    (void)now_ms;
     TouchEvent_t evt = { .type = TOUCH_EVT_NONE, .x = -1, .y = -1 };
+    if (now_ms - s_last_scan_ms < TOUCH_SCAN_INTERVAL_MS) return evt;
+    s_last_scan_ms = now_ms;
     bool pressed = Touch_IsPressed();
 
     if (pressed)

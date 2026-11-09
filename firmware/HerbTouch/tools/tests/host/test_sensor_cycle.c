@@ -87,6 +87,16 @@ int main(int argc,char **argv)
     tick=g_sensor_cycle.next_start_ms;Node_Poll(tick);
     tick=g_sensor_cycle.started_ms+NODE_SENSOR_ACTIVE_MS;Node_Poll(tick);advance(1100);
     CHECK(g_node.samples==3&&!g_sensor_cycle.average_pending,"empty window never manufactures a sample");
+    NodeIdentity_Select(1,true);
+    NodeMoveIntent fresh={2,1,{1,2},false};
+    CHECK(NodeSettings_BeginMove(&fresh)==NODECFG_OK,"persist a change of sampling site");
+    config_stage=CONFIG_MOVE;
+    modem.binding_result=IDENTITY_BOUND;
+    CHECK(finish_configuration(tick) && NodeIdentity_Number()==2 &&
+          !Model_GetSnapshot()->soil_temp_valid,"fresh-site ACK clears old-site display values");
+    advance(1);
+    CHECK(sensor_power && g_sensor_cycle.phase && g_sensor_cycle.air_count==0 && g_sensor_cycle.soil_count==0,
+          "new site starts a fresh powered cycle without waiting through the old rest period");
     /* Successful old values must disappear on a program restart. */
     Node_Init();
     CHECK(!Model_GetSnapshot()->air_temp_valid&&!Model_GetSnapshot()->soil_temp_valid,

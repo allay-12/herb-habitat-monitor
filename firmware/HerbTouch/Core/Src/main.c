@@ -113,7 +113,8 @@ int main(void)
     DisplayTest_Poll();
     Node_Poll(HAL_GetTick());
     UI_Process(HAL_GetTick());
-    HAL_Delay(10);
+    /* SysTick and peripheral interrupts wake the cooperative loop. */
+    __WFI();
   }
   /* USER CODE END 3 */
 }

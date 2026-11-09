@@ -29,12 +29,15 @@ int main(int argc,char **argv)
     CHECK(NodeSettings_Load()==NODECFG_OTHER_DEVICE&&!NodeIdentity_Saved()&&!NodeIdentity_CredentialsReady(),"copied card and firmware credentials cannot adopt another board UID");
     CHECK(!NodeIdentity_Select(0,true)&&!NodeIdentity_Select(10000,true),"invalid logical nodes rejected");
     uid();CHECK(NodeSettings_Load()==NODECFG_OK&&NodeIdentity_Number()==2,"original identity can still read its configuration");
-    NodeMoveIntent move={9999,2,{1,2}};
+    NodeMoveIntent move={9999,2,{1,2},true};
     g_node.sensor_enabled=g_node.modem_enabled=1;
     CHECK(NodeSettings_BeginMove(&move)==NODECFG_OK&&NodeIdentity_Number()==2,"persist intent before changing the live identity");
     g_node.sensor_enabled=g_node.modem_enabled=0;
-    uid();CHECK(NodeSettings_Load()==NODECFG_OK&&NodeIdentity_Number()==2&&
-                !memcmp(NodeSettings_PendingMove(),&move,sizeof(move)),"reset restores the exact pending request");
+    uid();CHECK(NodeSettings_Load()==NODECFG_OK&&NodeIdentity_Number()==2,"load pending request after reset");
+    const NodeMoveIntent *restored=NodeSettings_PendingMove();
+    CHECK(restored->target==move.target && restored->previous==move.previous &&
+          !memcmp(restored->nonce,move.nonce,sizeof(move.nonce)) && restored->carry_snapshot,
+          "reset restores request identity and same-site mode");
     TestDisk_AllowWrites(0);
     CHECK(NodeSettings_FinishMove(true)!=NODECFG_OK&&NodeIdentity_Number()==2&&NodeSettings_PendingMove()->target==9999,
           "failed SD save holds the original identity and pending request");
